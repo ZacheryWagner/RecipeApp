@@ -26,4 +26,13 @@ struct Recipe: Codable, Identifiable {
         case sourceURL = "source_url"
         case youtubeURL = "youtube_url"
     }
+    
+    static let mockRecipe = Recipe(
+        id: "1",
+        cuisine: "French",
+        name: "lots of food",
+        largePhotoURL: "https://d3jbb8n5wk0qxi.cloudfront.net/photos/b9ab0071-b281-4bee-b361-ec340d405320/large.jpg",
+        smallPhotoURL: "https://d3jbb8n5wk0qxi.cloudfront.net/photos/b9ab0071-b281-4bee-b361-ec340d405320/small.jpg",
+        sourceURL: "https://www.nyonyacooking.com/recipes/apam-balik~SJ5WuvsDf9WQ", youtubeURL: "https://www.youtube.com/watch?v=6R8ffRRJcrg"
+    )
 }

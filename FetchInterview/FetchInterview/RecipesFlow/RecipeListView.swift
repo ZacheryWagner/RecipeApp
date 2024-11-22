@@ -50,7 +50,7 @@ struct RecipeListView: View {
     @ViewBuilder
     private func recipeList(recipes: [Recipe]) -> some View {
         List(recipes) { recipe in
-            Text(recipe.name)
+            RecipeListRowView(recipe: recipe)
         }
         .listStyle(.plain)
     }

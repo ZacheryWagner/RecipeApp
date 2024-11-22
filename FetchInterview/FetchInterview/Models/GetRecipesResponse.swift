@@ -7,7 +7,6 @@
 
 import Foundation
 
-
 /// The expected response object from the `getRecipe` endpoint.
 struct GetRecipesResponse: Codable {
     let recipes: [Recipe]

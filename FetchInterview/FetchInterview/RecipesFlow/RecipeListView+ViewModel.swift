@@ -19,28 +19,28 @@ extension RecipeListView {
         }
 
         public func handleEvent(_ event: ViewEvent) {
-            switch event {
-            case .onAppear, .onRefresh:
-                fetchRecipes()
+            Task {
+                switch event {
+                case .onAppear, .onRefresh:
+                    await fetchRecipes()
+                }
             }
         }
         
-        private func fetchRecipes() {
-            Task {
-                let endpoint = ProductionEndpoint.getRecipes
-                do {
-                    let responseObject: GetRecipesResponse = try await networkService.makeRequest(endpoint: endpoint)
-                    guard responseObject.recipes.isEmpty == false else {
-                        recipes = []
-                        await updateViewState(with: .empty)
-                        return
-                    }
-
-                    recipes = responseObject.recipes
-                    await updateViewState(with: .loaded(recipes))
-                } catch {
-                    await updateViewState(with: .error(error.localizedDescription))
+        private func fetchRecipes() async {
+            let endpoint = ProductionEndpoint.getRecipes
+            do {
+                let responseObject: GetRecipesResponse = try await networkService.makeRequest(endpoint: endpoint)
+                guard responseObject.recipes.isEmpty == false else {
+                    recipes = []
+                    await updateViewState(with: .empty)
+                    return
                 }
+
+                recipes = responseObject.recipes
+                await updateViewState(with: .loaded(recipes))
+            } catch {
+                await updateViewState(with: .error(error.localizedDescription))
             }
         }
         
