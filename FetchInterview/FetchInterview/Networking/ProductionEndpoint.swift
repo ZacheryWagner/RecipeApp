@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// A conrete implementation of `Endpoint` that will function in prod.
+/// A concrete implementation of `Endpoint` that will function in prod.
 enum ProductionEndpoint {
     /// Fetch `getRecipesResponse`
     /// - Note; This endpoint is unpaginated

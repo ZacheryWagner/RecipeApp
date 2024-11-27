@@ -9,9 +9,11 @@ import SwiftUI
 
 struct RecipeListRowView: View {
     private let recipe: Recipe
+    private let cache: any ImageCache
     
-    init(recipe: Recipe) {
+    init(recipe: Recipe, cache: any ImageCache) {
         self.recipe = recipe
+        self.cache = cache
     }
     
     var body: some View {
@@ -25,29 +27,20 @@ struct RecipeListRowView: View {
             labelStack
         }
     }
-    
+
     private var image: some View {
-        let url = URL(string: recipe.smallPhotoURL ?? "")
-        return AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFit()
-            case .failure(_):
-                ProgressView()
-            case .empty:
-                EmptyView()
-            @unknown default:
-                Text("Support New Case")
-            }
-        }
+        return CacheableAsyncImage(
+            urlString: recipe.smallPhotoURL,
+            cache: cache,
+            placeholder: Image(systemName: "photo")
+        )
         .frame(
             width: RecipeFlowConstants.Image.small,
-            height: RecipeFlowConstants.Image.small)
+            height: RecipeFlowConstants.Image.small
+        )
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
-    
+
     private var labelStack: some View {
         VStack(alignment: .leading) {
             Text(recipe.name)
@@ -62,5 +55,7 @@ struct RecipeListRowView: View {
 }
 
 #Preview {
-    RecipeListRowView(recipe: Recipe.mockRecipe)
+    let saveLocationURL = FileManager.default.temporaryDirectory
+    let mockCache = DiskImageCache(saveLocationURL: saveLocationURL)
+    return RecipeListRowView(recipe: Recipe.mockRecipe, cache: mockCache)
 }

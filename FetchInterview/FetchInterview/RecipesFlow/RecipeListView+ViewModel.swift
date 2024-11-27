@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 extension RecipeListView {
     @Observable
@@ -13,13 +14,25 @@ extension RecipeListView {
         public var viewState: ViewState = .loading
         private var recipes = [Recipe]()
 
-        private var networkService: NetworkServicing
-        init(networkService: NetworkServicing) {
+        private let logger: any Logger
+        private let networkService: any NetworkServicing
+        public let imageCache: any ImageCache
+        
+        init(
+            logger: any Logger = ConsoleLogger.withTag("\(RecipeListView.ViewModel.self)"),
+            networkService: any NetworkServicing,
+            imageCache: any ImageCache
+        ) {
+            self.logger = logger
             self.networkService = networkService
+            self.imageCache = imageCache
+            
+            logger.debug("Initialized")
         }
-
+        
         public func handleEvent(_ event: ViewEvent) {
             Task {
+                logger.debug("handleEvent: \(event)")
                 switch event {
                 case .onAppear, .onRefresh:
                     await fetchRecipes()
@@ -28,6 +41,7 @@ extension RecipeListView {
         }
         
         private func fetchRecipes() async {
+            logger.debug("fetchRecipes")
             let endpoint = ProductionEndpoint.getRecipes
             do {
                 let responseObject: GetRecipesResponse = try await networkService.makeRequest(endpoint: endpoint)
@@ -46,6 +60,7 @@ extension RecipeListView {
         
         @MainActor
         private func updateViewState(with newState: ViewState) {
+            logger.debug("updateViewState")
             viewState = newState
         }
     }

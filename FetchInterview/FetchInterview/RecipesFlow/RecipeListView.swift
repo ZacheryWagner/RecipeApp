@@ -37,10 +37,7 @@ struct RecipeListView: View {
                     viewModel.handleEvent(.onRefresh)
                 }
         case .empty:
-            ContentUnavailableView("There are no recipes.", systemImage: "magnifyingglass")
-                .refreshable {
-                    viewModel.handleEvent(.onRefresh)
-                }
+            emptyView()
         case .error(let message):
             Text(message)
                 .foregroundStyle(.red)
@@ -50,9 +47,16 @@ struct RecipeListView: View {
     @ViewBuilder
     private func recipeList(recipes: [Recipe]) -> some View {
         List(recipes) { recipe in
-            RecipeListRowView(recipe: recipe)
+            RecipeListRowView(recipe: recipe, cache: viewModel.imageCache)
         }
         .listStyle(.plain)
+    }
+    
+    private func emptyView() -> some View {
+        ContentUnavailableView("There are no recipes.", systemImage: "magnifyingglass")
+            .refreshable {
+                viewModel.handleEvent(.onRefresh)
+            }
     }
 }
 

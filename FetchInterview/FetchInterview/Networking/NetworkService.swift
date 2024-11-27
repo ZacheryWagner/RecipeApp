@@ -21,6 +21,8 @@ class NetworkService: NetworkServicing {
     
     // MARK: Properties
     
+    private let logger: any Logger
+    
     /// The URL session used for executing network requests.
     private let session: URLSession
     
@@ -31,17 +33,25 @@ class NetworkService: NetworkServicing {
     
     /// Initializes a `NetworkService` with the specified `URLSession` and `URLBuilding` implementation.
     /// - Parameters:
+    ///   - logger: A logger tagged with Network Service.
     ///   - session: The `URLSession` to use for network requests. Defaults to `.shared`.
     ///   - urlBuilder: The `URLBuilding` implementation to use for creating URLs. Defaults to a new instance of `URLBuilder`.
-    init(session: URLSession = .shared, urlBuilder: URLBuilding = URLBuilder()) {
+    init(
+        logger: any Logger = ConsoleLogger.withTag("\(NetworkService.self)"),
+        session: URLSession = .shared,
+        urlBuilder: URLBuilding = URLBuilder()
+    ) {
+        self.logger = logger
         self.session = session
         self.urlBuilder = urlBuilder
+        
+        logger.info("Initialized")
     }
     
     // MARK: NetworkServicing
     
     /// Makes an asynchronous request to the specified endpoint and decodes the response.
-    /// - Parameter endpoint: The endpoint to build the rquest with.
+    /// - Parameter endpoint: The endpoint to build the request with.
     /// - Returns: A decoded instance of the specified `Codable` type `T`.
     /// - Throws:
     ///   - `NetworkServiceError.createURLFailed` if the URL creation fails.
@@ -50,7 +60,9 @@ class NetworkService: NetworkServicing {
     ///   - `NetworkServiceError.requestFailed` If the session.data throws and error.
     func makeRequest<T>(endpoint: any Endpoint) async throws -> T where T : Decodable, T : Encodable {
         guard let url = urlBuilder.buildURL(from: endpoint) else {
-            throw NetworkServiceError.createURLFailed
+            let error = NetworkServiceError.createURLFailed
+            logger.error(error)
+            throw error
         }
         
         var request = URLRequest(url: url)
@@ -63,12 +75,17 @@ class NetworkService: NetworkServicing {
             }
             
             guard response.isSuccess else {
-                throw NetworkServiceError.invalidResponse(response.statusCode)
+                let error = NetworkServiceError.invalidResponse(response.statusCode)
+                logger.error(error)
+                throw error
             }
             
+            logger.debug("Request succeeded with url: \(url)")
             return try decode(data: data)
         } catch {
-            throw NetworkServiceError.requestFailed(error)
+            let error = NetworkServiceError.requestFailed(error)
+            logger.error(error)
+            throw error
         }
     }
     
@@ -82,7 +99,9 @@ class NetworkService: NetworkServicing {
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
-            throw NetworkServiceError.decodeFailed(error)
+            let error = NetworkServiceError.decodeFailed(error)
+            logger.error(error)
+            throw error
         }
     }
 }
