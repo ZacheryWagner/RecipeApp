@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct RecipeListView: View {
-    
     @State private var viewModel: ViewModel
     
     init(viewModel: ViewModel) {
