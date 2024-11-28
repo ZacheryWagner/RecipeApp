@@ -10,4 +10,4 @@ import UIKit
 
 /// An interface for Cache that specifies we are cacheing images.
 /// The main idea behind this is to make swapping to a non file based cache easy in the future.
-protocol ImageCache: Cache where T == UIImage {}
+public protocol ImageCaching: Cache where T == UIImage {}

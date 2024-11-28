@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol URLBuilding {
+public protocol URLBuilding {
     func buildURL(from endpoint: Endpoint) -> URL?
 }
 

@@ -6,104 +6,144 @@
 //
 
 import Foundation
+import CryptoKit
 import UIKit
 
 /// A concrete implementation of `Cache` for storing Images on disk.
-final actor DiskImageCache: ImageCache {
+/// TODO: Add some eviction policy, probably time based.
+final class DiskImageCache: ImageCaching {
     // MARK: Properties
-    
+
     private let logger: any Logger
+    private let directoryLocationURL: URL
+    private let fileManager: FileManager = .default
+    private let compressionQuality: CGFloat
     
-    /// The `FileManager` `URL` to read and write from
-    private let saveLocationURL: URL
-    
-    /// An Instance of FileManager
-    private let fileManager: FileManager = FileManager.default
-    
+    // Used to prevent threading issues/race conditions.
+    // Originally I used an actor but performance wasn't great and I had my suspicions.
+    private let queue: DispatchQueue
+
     // MARK: Init
-    
+
     init(
         logger: any Logger = ConsoleLogger.withTag("\(DiskImageCache.self)"),
-        saveLocationURL: URL
+        saveLocationURL: URL,
+        compressionQuality: CGFloat = 0.75
     ) {
         self.logger = logger
-        self.saveLocationURL = saveLocationURL
-        
-        Task {
-            await createCacheDirectory()
-        }
+        self.directoryLocationURL = saveLocationURL
+        self.compressionQuality = compressionQuality
+        self.queue = DispatchQueue(
+            label: "com.fetchInterview.diskCacheQueue",
+            qos: .background,
+            attributes: .concurrent
+        )
+
+        createCacheDirectory()
     }
-    
-    // MARK: Cache
-    
-    func setValue(_ value: UIImage?, forKey key: String) {
+
+    // MARK: ImageCaching
+
+    func setValue(_ value: UIImage?, forKey key: String) async {
         guard let value = value else {
-            logger.warning("setValue called with nil value")
-            removeFile(forKey: key)
+            await removeValue(forKey: key)
             return
         }
-        
-        
-        let fileURL = saveLocationURL.appendingPathComponent(key)
-        if let data = value.pngData() ?? value.jpegData(compressionQuality: 1.0) {
-            do {
-                try data.write(to: fileURL)
-            } catch {
-                logger.error(DiskImageCacheError.failedToWrite(error, key))
+
+        await performCacheWrite(image: value, key: key)
+    }
+
+    private func performCacheWrite(image: UIImage, key: String) async {
+        await withCheckedContinuation { continuation in
+            queue.async(flags: .barrier) {
+                let fileURL = self.getFileLocationURL(with: key)
+
+                if let data = image.jpegData(compressionQuality: self.compressionQuality) {
+                    do {
+                        try data.write(to: fileURL)
+                    } catch {
+                        self.logger.error(DiskImageCacheError.failedToWrite(error, key))
+                    }
+                }
+                
+                continuation.resume()
             }
         }
     }
-    
-    func getValue(forKey key: String) -> UIImage? {
-        let fileURL = saveLocationURL.appendingPathComponent(key)
-        
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            logger.warning("getValue called with nonexistent file: \(fileURL.path).")
-            return nil
+
+    func getValue(forKey key: String) async -> UIImage? {
+        return await withCheckedContinuation { continuation in
+            queue.async {
+                let fileURL = self.getFileLocationURL(with: key)
+
+                guard self.fileManager.fileExists(atPath: fileURL.path) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                do {
+                    let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+                    let image = UIImage(data: data)
+                    continuation.resume(returning: image)
+                } catch {
+                    self.logger.error(DiskImageCacheError.failedToRead(error))
+                    continuation.resume(returning: nil)
+                }
+            }
         }
+    }
+
+    func removeValue(forKey key: String) async {
+        await withCheckedContinuation { continuation in
+            queue.async(flags: .barrier) {
+                let fileURL = self.getFileLocationURL(with: key)
+                try? self.fileManager.removeItem(at: fileURL)
+                continuation.resume()
+            }
+        }
+    }
+
+    func removeAllValues() async {
+        await withCheckedContinuation { continuation in
+            queue.async(flags: .barrier) {
+                if let files = try? self.fileManager.contentsOfDirectory(
+                    at: self.directoryLocationURL,
+                    includingPropertiesForKeys: nil
+                ) {
+                    for file in files {
+                        try? self.fileManager.removeItem(at: file)
+                    }
+                }
+                continuation.resume()
+            }
+        }
+    }
+
+    // MARK: Helpers
+
+    private func createCacheDirectory() {
+        guard fileManager.fileExists(atPath: directoryLocationURL.path) == false else { return }
         
         do {
-            let data = try Data(contentsOf: fileURL)
-            return UIImage(data: data)
+            try fileManager.createDirectory(
+                at: directoryLocationURL,
+                withIntermediateDirectories: true
+            )
         } catch {
-            logger.error(DiskImageCacheError.failedToRead(error))
-            return nil
+            logger.error(DiskImageCacheError.failedToCreateDirectory(error))
         }
     }
     
-    func removeValue(forKey key: String) {
-        removeFile(forKey: key)
+    /// Creates a URL with a sanitized path component
+    private func getFileLocationURL(with key: String) -> URL {
+        let sanitizedKey = getSanitizedKey(key)
+        return directoryLocationURL.appendingPathComponent(sanitizedKey)
     }
     
-    func removeAllValues() {
-        if let files = try? fileManager.contentsOfDirectory(at: saveLocationURL, includingPropertiesForKeys: nil) {
-            for file in files {
-                let key = file.lastPathComponent
-                removeFile(forKey: key)
-            }
-        }
-    }
-    
-    // MARK: Helpers
-    
-    private func createCacheDirectory() async {
-        if fileManager.fileExists(atPath: saveLocationURL.path) {
-            do {
-                try fileManager.createDirectory(at: saveLocationURL, withIntermediateDirectories: true)
-            } catch {
-                logger.error(DiskImageCacheError.failedToCreateDirectory(error))
-            }
-        }
-    }
-    
-    private func removeFile(forKey key: String) {
-        let fileURL = saveLocationURL.appendingPathComponent(key)
-        if fileManager.fileExists(atPath: fileURL.path) {
-            do {
-                try fileManager.removeItem(at: fileURL)
-            } catch {
-                logger.error(DiskImageCacheError.failedToRemove(error))
-            }
-        }
+    /// Generate a consistent, file-system safe key
+    private func getSanitizedKey(_ key: String) -> String {
+        let data = Data(key.utf8)
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
 }

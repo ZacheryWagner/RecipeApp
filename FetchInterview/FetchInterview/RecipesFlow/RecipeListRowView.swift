@@ -9,11 +9,11 @@ import SwiftUI
 
 struct RecipeListRowView: View {
     private let recipe: Recipe
-    private let cache: any ImageCache
+    private let imageLoader: any ImageLoading
     
-    init(recipe: Recipe, cache: any ImageCache) {
+    init(recipe: Recipe, imageLoader: any ImageLoading) {
         self.recipe = recipe
-        self.cache = cache
+        self.imageLoader = imageLoader
     }
     
     var body: some View {
@@ -31,7 +31,7 @@ struct RecipeListRowView: View {
     private var image: some View {
         return CacheableAsyncImage(
             urlString: recipe.smallPhotoURL,
-            cache: cache,
+            imageLoader: imageLoader,
             placeholder: Image(systemName: "photo")
         )
         .frame(
@@ -57,5 +57,6 @@ struct RecipeListRowView: View {
 #Preview {
     let saveLocationURL = FileManager.default.temporaryDirectory
     let mockCache = DiskImageCache(saveLocationURL: saveLocationURL)
-    return RecipeListRowView(recipe: Recipe.mockRecipe, cache: mockCache)
+    let imageLoader = ImageLoader(cache: mockCache)
+    return RecipeListRowView(recipe: Recipe.mockRecipe, imageLoader: imageLoader)
 }

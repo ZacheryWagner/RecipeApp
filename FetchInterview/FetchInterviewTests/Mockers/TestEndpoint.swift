@@ -8,10 +8,10 @@
 import Foundation
 import FetchInterview
 
-
 /// An `Endpoint` implementation only to be used in testing.
 ///  - Warning: Do not use in `Production`
 enum TestEndpoint {
+    case getRecipes
     case getRecipesMalformed
     case getRecipesEmpty
 }
@@ -27,6 +27,8 @@ extension TestEndpoint: Endpoint {
     
     var path: String {
         switch self {
+        case .getRecipes:
+            "/recipes.json"
         case .getRecipesMalformed:
             "/recipes-malformed.json"
         case .getRecipesEmpty:
@@ -36,7 +38,7 @@ extension TestEndpoint: Endpoint {
     
     var method: HTTPMethod {
         switch self {
-        case .getRecipesMalformed, .getRecipesEmpty:
+        case .getRecipes, .getRecipesMalformed, .getRecipesEmpty:
             return .get
         }
     }

@@ -16,16 +16,16 @@ extension RecipeListView {
 
         private let logger: any Logger
         private let networkService: any NetworkServicing
-        public let imageCache: any ImageCache
+        public let imageLoader: any ImageLoading
         
         init(
             logger: any Logger = ConsoleLogger.withTag("\(RecipeListView.ViewModel.self)"),
             networkService: any NetworkServicing,
-            imageCache: any ImageCache
+            imageLoader: any ImageLoading
         ) {
             self.logger = logger
             self.networkService = networkService
-            self.imageCache = imageCache
+            self.imageLoader = imageLoader
             
             logger.debug("Initialized")
         }

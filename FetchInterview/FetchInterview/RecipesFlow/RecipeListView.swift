@@ -47,7 +47,7 @@ struct RecipeListView: View {
     @ViewBuilder
     private func recipeList(recipes: [Recipe]) -> some View {
         List(recipes) { recipe in
-            RecipeListRowView(recipe: recipe, cache: viewModel.imageCache)
+            RecipeListRowView(recipe: recipe, imageLoader: viewModel.imageLoader)
         }
         .listStyle(.plain)
     }

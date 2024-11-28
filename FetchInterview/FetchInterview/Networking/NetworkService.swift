@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol NetworkServicing {
+public protocol NetworkServicing {
     /// Makes an asynchronous request to the specified endpoint and decodes the response.
     /// - Parameter endpoint: The endpoint to build the rquest with.
     /// - Returns: A decoded instance of the specified `Codable` type `T`.
@@ -24,10 +24,10 @@ class NetworkService: NetworkServicing {
     private let logger: any Logger
     
     /// The URL session used for executing network requests.
-    private let session: URLSession
+    private let session: any DataRequesting
     
     /// A URL builder responsible for constructing valid URLs from `Endpoint` objects.
-    private let urlBuilder: URLBuilding
+    private let urlBuilder: any URLBuilding
     
     // MARK: Init
     
@@ -38,8 +38,8 @@ class NetworkService: NetworkServicing {
     ///   - urlBuilder: The `URLBuilding` implementation to use for creating URLs. Defaults to a new instance of `URLBuilder`.
     init(
         logger: any Logger = ConsoleLogger.withTag("\(NetworkService.self)"),
-        session: URLSession = .shared,
-        urlBuilder: URLBuilding = URLBuilder()
+        session: any DataRequesting = URLSession.shared,
+        urlBuilder: any URLBuilding = URLBuilder()
     ) {
         self.logger = logger
         self.session = session

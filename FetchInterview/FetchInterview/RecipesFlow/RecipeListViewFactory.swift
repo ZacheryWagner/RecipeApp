@@ -22,10 +22,11 @@ struct RecipeListViewFactory {
         }
 
         let cache = DiskImageCache(saveLocationURL: saveLocationURL)
+        let imageLoader = ImageLoader(cache: cache)
         let networkService = NetworkService()
         let viewModel = RecipeListView.ViewModel(
             networkService: networkService,
-            imageCache: cache)
+            imageLoader: imageLoader)
         return RecipeListView(viewModel: viewModel)
     }
 }

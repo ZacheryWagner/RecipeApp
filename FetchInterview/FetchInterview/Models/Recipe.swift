@@ -8,7 +8,7 @@
 import Foundation
 
 /// A codable object representing a recipe
-struct Recipe: Codable, Identifiable {
+struct Recipe: Codable, Identifiable, Equatable {
     let id: String
     let cuisine: String
     let name: String
