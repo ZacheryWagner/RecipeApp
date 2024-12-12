@@ -8,12 +8,12 @@
 import Foundation
 import UIKit
 
-public protocol ImageLoading {
+public protocol ImageLoading: Actor {
     func loadImage(from urlString: String?) async throws -> UIImage?
 }
 
 /// Proxy for loading Images from the network and/or cache
-class ImageLoader: ImageLoading {
+actor ImageLoader: ImageLoading {
     private let cache: any ImageCaching
 
     init(cache: any ImageCaching) {

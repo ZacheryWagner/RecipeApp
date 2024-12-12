@@ -11,17 +11,13 @@ import UIKit
 
 /// A concrete implementation of `Cache` for storing Images on disk.
 /// TODO: Add some eviction policy, probably time based.
-final class DiskImageCache: ImageCaching {
+actor DiskImageCache: ImageCaching {
     // MARK: Properties
 
     private let logger: any Logger
     private let directoryLocationURL: URL
     private let fileManager: FileManager = .default
     private let compressionQuality: CGFloat
-    
-    // Used to prevent threading issues/race conditions.
-    // Originally I used an actor but performance wasn't great and I had my suspicions.
-    private let queue: DispatchQueue
 
     // MARK: Init
 
@@ -33,13 +29,17 @@ final class DiskImageCache: ImageCaching {
         self.logger = logger
         self.directoryLocationURL = saveLocationURL
         self.compressionQuality = compressionQuality
-        self.queue = DispatchQueue(
-            label: "com.fetchInterview.diskCacheQueue",
-            qos: .background,
-            attributes: .concurrent
-        )
 
-        createCacheDirectory()
+        guard fileManager.fileExists(atPath: directoryLocationURL.path) == false else { return }
+        
+        do {
+            try fileManager.createDirectory(
+                at: directoryLocationURL,
+                withIntermediateDirectories: true
+            )
+        } catch {
+            logger.error(DiskImageCacheError.failedToCreateDirectory(error))
+        }
     }
 
     // MARK: ImageCaching
@@ -54,74 +54,53 @@ final class DiskImageCache: ImageCaching {
     }
 
     private func performCacheWrite(image: UIImage, key: String) async {
-        await withCheckedContinuation { continuation in
-            queue.async(flags: .barrier) {
-                let fileURL = self.getFileLocationURL(with: key)
+        let fileURL = self.getFileLocationURL(with: key)
 
-                if let data = image.jpegData(compressionQuality: self.compressionQuality) {
-                    do {
-                        try data.write(to: fileURL)
-                    } catch {
-                        self.logger.error(DiskImageCacheError.failedToWrite(error, key))
-                    }
-                }
-                
-                continuation.resume()
+        if let data = image.jpegData(compressionQuality: self.compressionQuality) {
+            do {
+                try data.write(to: fileURL)
+            } catch {
+                self.logger.error(DiskImageCacheError.failedToWrite(error, key))
             }
         }
     }
 
     func getValue(forKey key: String) async -> UIImage? {
-        return await withCheckedContinuation { continuation in
-            queue.async {
-                let fileURL = self.getFileLocationURL(with: key)
+        let fileURL = self.getFileLocationURL(with: key)
 
-                guard self.fileManager.fileExists(atPath: fileURL.path) else {
-                    continuation.resume(returning: nil)
-                    return
-                }
+        guard self.fileManager.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
 
-                do {
-                    let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
-                    let image = UIImage(data: data)
-                    continuation.resume(returning: image)
-                } catch {
-                    self.logger.error(DiskImageCacheError.failedToRead(error))
-                    continuation.resume(returning: nil)
-                }
-            }
+        do {
+            let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+            let image = UIImage(data: data)
+            return image
+        } catch {
+            self.logger.error(DiskImageCacheError.failedToRead(error))
+            return nil
         }
     }
 
     func removeValue(forKey key: String) async {
-        await withCheckedContinuation { continuation in
-            queue.async(flags: .barrier) {
-                let fileURL = self.getFileLocationURL(with: key)
-                try? self.fileManager.removeItem(at: fileURL)
-                continuation.resume()
-            }
-        }
+        let fileURL = self.getFileLocationURL(with: key)
+        try? self.fileManager.removeItem(at: fileURL)
     }
 
     func removeAllValues() async {
-        await withCheckedContinuation { continuation in
-            queue.async(flags: .barrier) {
-                if let files = try? self.fileManager.contentsOfDirectory(
-                    at: self.directoryLocationURL,
-                    includingPropertiesForKeys: nil
-                ) {
-                    for file in files {
-                        try? self.fileManager.removeItem(at: file)
-                    }
-                }
-                continuation.resume()
+        if let files = try? self.fileManager.contentsOfDirectory(
+            at: self.directoryLocationURL,
+            includingPropertiesForKeys: nil
+        ) {
+            for file in files {
+                try? self.fileManager.removeItem(at: file)
             }
         }
     }
 
     // MARK: Helpers
 
-    private func createCacheDirectory() {
+    private func createCacheDirectory() async {
         guard fileManager.fileExists(atPath: directoryLocationURL.path) == false else { return }
         
         do {

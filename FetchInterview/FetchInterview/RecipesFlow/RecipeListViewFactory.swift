@@ -11,6 +11,7 @@ import Foundation
 struct RecipeListViewFactory {
     /// Creates an instance of `RecipeListView`.
     /// - Returns: A fully configured `RecipeListView`.
+    @MainActor
     static func create() -> RecipeListView {
         var saveLocationURL = FileManager.default.temporaryDirectory
         if let url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {

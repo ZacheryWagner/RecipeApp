@@ -50,11 +50,14 @@ struct CacheableAsyncImage: View {
         if displayImage != nil || isLoading { return }
         isLoading = true
 
-        Task {
+        Task.detached {
             if let image = try await imageLoader.loadImage(from: urlString) {
                 await updateImage(image: image)
             }
-            isLoading = false
+        
+            await MainActor.run {
+                isLoading = false
+            }
         }
     }
     

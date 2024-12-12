@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol Cache {
+public protocol Cache: Actor {
     associatedtype T
 
     /// Sets a value with a key in the cache

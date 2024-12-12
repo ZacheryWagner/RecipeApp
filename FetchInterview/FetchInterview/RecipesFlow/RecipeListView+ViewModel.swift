@@ -29,13 +29,14 @@ extension RecipeListView {
             
             logger.debug("Initialized")
         }
-        
+
+        @MainActor
         public func handleEvent(_ event: ViewEvent) {
-            Task {
-                logger.debug("handleEvent: \(event)")
+            Task { [weak self] in
+                self?.logger.debug("handleEvent: \(event)")
                 switch event {
                 case .onAppear, .onRefresh:
-                    await fetchRecipes()
+                    await self?.fetchRecipes()
                 }
             }
         }
